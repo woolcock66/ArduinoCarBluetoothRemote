@@ -4,5 +4,9 @@
     <string name="app_name">RC Car Remote</string>
     <string name="action_settings">Settings</string>
     <string name="hello_world">Hello world!</string>
+    <string name="button_control">Button Control</string>
+    <string name="device_connect">Connect to Device</string>
+    <string name="autopilot">Autopilot</string>
+    <string name="gyroscope">Gyroscope</string>
 
 </resources>
