@@ -8,5 +8,9 @@
     <string name="device_connect">Connect to Device</string>
     <string name="autopilot">Autopilot</string>
     <string name="gyroscope">Gyroscope</string>
+    <string name="bt_not_sup">Bluetooth is not supported on this device.</string>
+    <string name="confirm">Okay</string>
+    <string name="pick_device">Pick your device</string>
+    <string name="search_for_device">Discover new devices</string>
 
 </resources>
