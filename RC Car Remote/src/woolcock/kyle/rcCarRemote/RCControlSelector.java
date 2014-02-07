@@ -7,8 +7,11 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.View;
@@ -21,10 +24,28 @@ public class RCControlSelector extends Activity {
 	ArrayAdapter<String> mArrayAdapter = new ArrayAdapter<String>(this,
 			android.R.layout.select_dialog_singlechoice);
 
+	// Will listen for broadcast when a new bluetooth device is found
+	private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+	    public void onReceive(Context context, Intent intent) {
+	        String action = intent.getAction();
+	        // When discovery finds a device
+	        if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+	            // Get the BluetoothDevice object from the Intent
+	            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+	            // Add the name and address to an array adapter to show in a ListView
+	            mArrayAdapter.add(device.getName() + "\n" + device.getAddress());
+	        }
+	    }
+	};
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_rccontrol_selector);
+	}
+	
+	protected void onDestroy() {
+		unregisterReceiver(mReceiver);
 	}
 
 	@Override
@@ -50,8 +71,7 @@ public class RCControlSelector extends Activity {
 	        builder.create().show();
 		}
 		if (!mBluetoothAdapter.isEnabled()) {
-			// TODO progress bar for this activity
-			final ProgressDialog progDailog = ProgressDialog.show(this, "Progress_bar or give anything you want",
+			final ProgressDialog progDailog = ProgressDialog.show(this, "Waiting for Bluetooth Adapter to Power on",
 		            "Please Wait....", true);
 		    new Thread() {
 		        public void run() {
@@ -77,20 +97,24 @@ public class RCControlSelector extends Activity {
 				device = mBluetoothAdapter.getRemoteDevice(device.getAddress());
 				mArrayAdapter.add(device.getName() + "\n" + device.getAddress());
 			}
-		    AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		    builder.setTitle(R.string.pick_device)
-		           .setItems(R.array.colors_array, new DialogInterface.OnClickListener() {
-		               public void onClick(DialogInterface dialog, int which) {
-		               // The 'which' argument contains the index position
-		               // of the selected item
-		           }
-		    }).setPositiveButton(R.string.search_for_device, new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int id) {
-             	   
-                }
-            });;
-		    builder.create().show();
 		}
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle(R.string.pick_device).setAdapter(mArrayAdapter, new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int which) {
+				// The 'which' argument contains the index position
+				// of the selected item
+				//TODO Pair with selected device
+			}
+		}).setPositiveButton(R.string.search_for_device, new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int id) {
+				mBluetoothAdapter.startDiscovery();
+				// Register for notifications when a new device is discovered
+				IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+				registerReceiver(mReceiver, filter);
+				// TODO Progress display for device search.
+			}
+		});
+		builder.create().show();
 	}
 
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
