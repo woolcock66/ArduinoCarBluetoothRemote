@@ -9,7 +9,6 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -20,13 +19,15 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.view.Menu;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.ArrayAdapter;
 
 public class RCControlSelector extends Activity {
 
-	int REQUEST_ENABLE_BT = 1;
-
-	ArrayAdapter<String> mArrayAdapter;
+	private int REQUEST_ENABLE_BT = 1;
+	private ArrayAdapter<String> mArrayAdapter;
+	private BluetoothSocket socket;
+	private boolean btSearchComplete = false;
 
 	// Will listen for broadcast when a new bluetooth device is found
 	private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
@@ -36,12 +37,50 @@ public class RCControlSelector extends Activity {
 			if (BluetoothDevice.ACTION_FOUND.equals(action)) {
 				// Get the BluetoothDevice object from the Intent
 				BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-				// Add the name and address to an array adapter to show in a
-				// ListView
+				// Add the name and address to an array adapter to show in a ListView
 				mArrayAdapter.add(device.getName() + "\n" + device.getAddress());
+			}
+			if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+				btSearchComplete = true;
 			}
 		}
 	};
+
+	class CustomListener implements OnClickListener {
+		private BluetoothAdapter mBluetoothAdapter;
+		
+		@Override
+		public void onClick(View view) {		
+			final ProgressDialog progDailog = ProgressDialog.show(RCControlSelector.this,
+					"Waiting for scan results", "Please Wait....", true);
+			btSearchComplete = false;
+			// Create a new thread to search on
+			new Thread() {
+				public void run() {
+					Looper.prepare();
+					try {
+						mBluetoothAdapter.startDiscovery();
+						// Register for notifications when a new device is discovered and when the search completes
+						IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+						IntentFilter filter2 = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+						registerReceiver(mReceiver, filter);
+						registerReceiver(mReceiver,filter2);
+						// check for when the search completes
+						while (!btSearchComplete) {
+							sleep(100);
+						}
+					} catch (Exception e) {
+					}
+					progDailog.dismiss();
+				}
+			}.start();
+		}
+
+		private CustomListener(BluetoothAdapter bluetoothadapter) {
+			super();
+			mBluetoothAdapter = bluetoothadapter;
+		}
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +89,7 @@ public class RCControlSelector extends Activity {
 
 	}
 
+	@Override
 	protected void onDestroy() {
 		unregisterReceiver(mReceiver);
 	}
@@ -59,6 +99,11 @@ public class RCControlSelector extends Activity {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.rccontrol_selector, menu);
 		return true;
+	}
+	
+	public void goToAutoPilotActivity(View view) {
+		Intent intent = new Intent(this, AutopilotActivity.class);
+		startActivity(intent);
 	}
 
 	public void connectToDevice(View view) {
@@ -82,21 +127,24 @@ public class RCControlSelector extends Activity {
 				@Override
 				public void run() {
 					Looper.prepare();
-					ProgressDialog progDailog = ProgressDialog.show(RCControlSelector.this,
-							"Waiting for Bluetooth Adapter to Power on", "Please Wait....", true);
 					try {
 						Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
 						startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-						while (mBluetoothAdapter.getState() != BluetoothAdapter.STATE_ON) {
-							sleep(100);
-						}
 					} catch (Exception e) {
+						// TODO Failure to start bluetooth notification?
+						return;
 					}
-					progDailog.dismiss();
 				}
 			}.start();
 		}
-		// TODO wait for bluetooth to power up
+		// Wait for bluetooth adapter to power up before continuing
+		while (mBluetoothAdapter.getState() != BluetoothAdapter.STATE_ON) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				// Ignore
+			}
+		}
 		Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
 		// If there are paired devices
 		if (pairedDevices.size() > 0) {
@@ -112,12 +160,19 @@ public class RCControlSelector extends Activity {
 		builder.setTitle(R.string.pick_device)
 				.setAdapter(mArrayAdapter, new DialogInterface.OnClickListener() {
 					public void onClick(DialogInterface dialog, int which) {
-						// The 'which' argument contains the index position of
-						// the selected item
+						// The 'which' argument contains the index position of the selected item
 						// TODO Pair with selected device
+						mBluetoothAdapter.cancelDiscovery();
 						String device = mArrayAdapter.getItem(which);
-						new ConnectThread(mBluetoothAdapter.getRemoteDevice(device.substring(device
-								.indexOf('\n') + 1)));
+						try {
+							socket = mBluetoothAdapter
+									.getRemoteDevice(device.substring(device.indexOf('\n') + 1))
+									.createRfcommSocketToServiceRecord(
+											UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"));
+							socket.connect();
+						} catch (IOException e) {
+							// TODO could not connect notification
+						}
 					}
 				})
 				.setPositiveButton(R.string.search_for_device,
@@ -127,33 +182,9 @@ public class RCControlSelector extends Activity {
 							}
 						});
 		final AlertDialog dialog = builder.create();
-		dialog.setOnShowListener(new DialogInterface.OnShowListener() {
-			@Override
-			public void onShow(DialogInterface dialog) {
-				new Thread() {
-					public void run() {
-						ProgressDialog progDailog = ProgressDialog.show(
-								RCControlSelector.this, "Waiting for scan results",
-								"Please Wait....", true);
-						try {
-							mBluetoothAdapter.startDiscovery();
-							// Register for notifications when a new device is
-							// discovered
-							IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-							registerReceiver(mReceiver, filter);
-							while (mBluetoothAdapter.isDiscovering()) {
-								sleep(100);
-							}
-						} catch (Exception e) {
-						}
-						progDailog.dismiss();
-					}
-				}.start();
-			}
-		});
 		dialog.show();
-
-		// TODO Progress display for device search.
+		// Override onClickListener
+		dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new CustomListener(mBluetoothAdapter));
 	}
 
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -164,57 +195,6 @@ public class RCControlSelector extends Activity {
 
 			} else {
 
-			}
-		}
-	}
-
-	private class ConnectThread extends Thread {
-		private final BluetoothSocket mmSocket;
-		private final BluetoothDevice mmDevice;
-
-		public ConnectThread(BluetoothDevice device) {
-			// Use a temporary object that is later assigned to mmSocket,
-			// because mmSocket is final
-			BluetoothSocket tmp = null;
-			mmDevice = device;
-
-			// Get a BluetoothSocket to connect with the given BluetoothDevice
-			try {
-				// MY_UUID is the app's UUID string, also used by the server
-				// code
-				tmp = device.createRfcommSocketToServiceRecord(UUID
-						.fromString("00001101-0000-1000-8000-00805F9B34FB"));
-			} catch (IOException e) {
-			}
-			mmSocket = tmp;
-		}
-
-		public void run() {
-			// Cancel discovery because it will slow down the connection
-			BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
-
-			try {
-				// Connect the device through the socket. This will block
-				// until it succeeds or throws an exception
-				mmSocket.connect();
-			} catch (IOException connectException) {
-				// Unable to connect; close the socket and get out
-				try {
-					mmSocket.close();
-				} catch (IOException closeException) {
-				}
-				return;
-			}
-
-			// Do work to manage the connection (in a separate thread)
-			// manageConnectedSocket(mmSocket);
-		}
-
-		/** Will cancel an in-progress connection, and close the socket */
-		public void cancel() {
-			try {
-				mmSocket.close();
-			} catch (IOException e) {
 			}
 		}
 	}

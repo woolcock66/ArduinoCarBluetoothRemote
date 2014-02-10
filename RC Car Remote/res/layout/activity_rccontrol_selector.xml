@@ -20,7 +20,8 @@
         android:id="@+id/button3"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text="@string/autopilot" />
+        android:text="@string/autopilot"
+        android:onClick="goToAutoPilotActivity" />
 
     <Button
         android:id="@+id/button4"
