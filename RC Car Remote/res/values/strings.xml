@@ -12,5 +12,8 @@
     <string name="confirm">Okay</string>
     <string name="pick_device">Pick your device</string>
     <string name="search_for_device">Discover new devices</string>
+    <string name="title_activity_autopilot">AutopilotActivity</string>
+    <string name="error">Error</string>
+    <string name="connect_error">There was an error attempting to connect to your device.  Please try again.</string>
 
 </resources>

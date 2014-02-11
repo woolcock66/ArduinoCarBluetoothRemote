@@ -6,27 +6,31 @@
     <Button
         android:id="@+id/button1"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="100dip"
+        android:layout_margin="10dip"
         android:onClick="connectToDevice"
         android:text="@string/device_connect" />
 
     <Button
         android:id="@+id/button2"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="100dip"
+        android:layout_margin="10dip"
         android:text="@string/button_control" />
 
     <Button
         android:id="@+id/button3"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/autopilot"
-        android:onClick="goToAutoPilotActivity" />
+        android:layout_height="100dip"
+        android:layout_margin="10dip"
+        android:onClick="goToAutoPilotActivity"
+        android:text="@string/autopilot" />
 
     <Button
         android:id="@+id/button4"
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="100dip"
+        android:layout_margin="10dip"
         android:text="@string/gyroscope" />
 
 </LinearLayout>

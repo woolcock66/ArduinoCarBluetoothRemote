@@ -24,7 +24,7 @@ import android.widget.ArrayAdapter;
 
 public class RCControlSelector extends Activity {
 
-	private int REQUEST_ENABLE_BT = 1;
+	final static private int REQUEST_ENABLE_BT = 1;
 	private ArrayAdapter<String> mArrayAdapter;
 	private BluetoothSocket socket;
 	private boolean btSearchComplete = false;
@@ -46,42 +46,6 @@ public class RCControlSelector extends Activity {
 		}
 	};
 
-	class CustomListener implements OnClickListener {
-		private BluetoothAdapter mBluetoothAdapter;
-		
-		@Override
-		public void onClick(View view) {		
-			final ProgressDialog progDailog = ProgressDialog.show(RCControlSelector.this,
-					"Waiting for scan results", "Please Wait....", true);
-			btSearchComplete = false;
-			// Create a new thread to search on
-			new Thread() {
-				public void run() {
-					Looper.prepare();
-					try {
-						mBluetoothAdapter.startDiscovery();
-						// Register for notifications when a new device is discovered and when the search completes
-						IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-						IntentFilter filter2 = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-						registerReceiver(mReceiver, filter);
-						registerReceiver(mReceiver,filter2);
-						// check for when the search completes
-						while (!btSearchComplete) {
-							sleep(100);
-						}
-					} catch (Exception e) {
-					}
-					progDailog.dismiss();
-				}
-			}.start();
-		}
-
-		private CustomListener(BluetoothAdapter bluetoothadapter) {
-			super();
-			mBluetoothAdapter = bluetoothadapter;
-		}
-	}
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -91,6 +55,7 @@ public class RCControlSelector extends Activity {
 
 	@Override
 	protected void onDestroy() {
+		// Make sure to unregister our receiver
 		unregisterReceiver(mReceiver);
 	}
 
@@ -101,6 +66,12 @@ public class RCControlSelector extends Activity {
 		return true;
 	}
 	
+	public void checkBluetoothConnection() {
+		if (socket == null) {
+			// TODO, display notification of not connected 
+		}
+	}
+
 	public void goToAutoPilotActivity(View view) {
 		Intent intent = new Intent(this, AutopilotActivity.class);
 		startActivity(intent);
@@ -161,7 +132,7 @@ public class RCControlSelector extends Activity {
 				.setAdapter(mArrayAdapter, new DialogInterface.OnClickListener() {
 					public void onClick(DialogInterface dialog, int which) {
 						// The 'which' argument contains the index position of the selected item
-						// TODO Pair with selected device
+						// Connect to the selected device
 						mBluetoothAdapter.cancelDiscovery();
 						String device = mArrayAdapter.getItem(which);
 						try {
@@ -170,8 +141,20 @@ public class RCControlSelector extends Activity {
 									.createRfcommSocketToServiceRecord(
 											UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"));
 							socket.connect();
+							// We should now have a working socket we can retrieve streams from
 						} catch (IOException e) {
-							// TODO could not connect notification
+							// Could not connect notification
+							AlertDialog.Builder builder = new AlertDialog.Builder(
+									RCControlSelector.this);
+							builder.setTitle(R.string.error)
+									.setMessage(R.string.connect_error)
+									.setPositiveButton(R.string.confirm,
+											new DialogInterface.OnClickListener() {
+												public void onClick(DialogInterface dialog, int id) {
+													// Exit the method
+													return;
+												}
+											});
 						}
 					}
 				})
@@ -184,18 +167,45 @@ public class RCControlSelector extends Activity {
 		final AlertDialog dialog = builder.create();
 		dialog.show();
 		// Override onClickListener
-		dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(new CustomListener(mBluetoothAdapter));
+		dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(
+				new CustomListener(mBluetoothAdapter));
 	}
+	
+	class CustomListener implements OnClickListener {
+		private BluetoothAdapter mBluetoothAdapter;
 
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		if (requestCode == REQUEST_ENABLE_BT) {
-			if (resultCode == RESULT_OK) {
+		@Override
+		public void onClick(View view) {
+			final ProgressDialog progDailog = ProgressDialog.show(RCControlSelector.this,
+					"Waiting for scan results", "Please Wait....", true);
+			btSearchComplete = false;
+			// Create a new thread to search on
+			new Thread() {
+				public void run() {
+					Looper.prepare();
+					try {
+						mBluetoothAdapter.startDiscovery();
+						// Register for notifications when a new device is
+						// discovered and when the search completes
+						IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+						IntentFilter filter2 = new IntentFilter(
+								BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+						registerReceiver(mReceiver, filter);
+						registerReceiver(mReceiver, filter2);
+						// check for when the search completes
+						while (!btSearchComplete) {
+							sleep(100);
+						}
+					} catch (Exception e) {
+					}
+					progDailog.dismiss();
+				}
+			}.start();
+		}
 
-			} else if (resultCode == RESULT_CANCELED) {
-
-			} else {
-
-			}
+		private CustomListener(BluetoothAdapter bluetoothadapter) {
+			super();
+			mBluetoothAdapter = bluetoothadapter;
 		}
 	}
 }
