@@ -15,5 +15,10 @@
     <string name="title_activity_autopilot">AutopilotActivity</string>
     <string name="error">Error</string>
     <string name="connect_error">There was an error attempting to connect to your device.  Please try again.</string>
+    <string name="cautious_auto">Cautious Obstacle Avoid</string>
+    <string name="fast_auto">Obstacle Avoid</string>
+    <string name="spiral_auto">Spiral Out</string>
+    <string name="stop">Stop</string>
+    <string name="title_activity_remote_control">RemoteControlActivity</string>
 
 </resources>

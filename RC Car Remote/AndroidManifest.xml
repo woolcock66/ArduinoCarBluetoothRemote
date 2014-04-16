@@ -29,6 +29,10 @@
             android:name="woolcock.kyle.rcCarRemote.AutopilotActivity"
             android:label="@string/title_activity_autopilot" >
         </activity>
+        <activity
+            android:name="woolcock.kyle.rcCarRemote.RemoteControlActivity"
+            android:label="@string/title_activity_remote_control" >
+        </activity>
     </application>
 
 </manifest>

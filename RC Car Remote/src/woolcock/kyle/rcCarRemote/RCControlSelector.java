@@ -66,10 +66,12 @@ public class RCControlSelector extends Activity {
 		return true;
 	}
 	
-	public void checkBluetoothConnection() {
+	private boolean checkBluetoothConnection() {
 		if (socket == null) {
 			// TODO, display notification of not connected 
+			return false;
 		}
+		return true;
 	}
 
 	public void goToAutoPilotActivity(View view) {
